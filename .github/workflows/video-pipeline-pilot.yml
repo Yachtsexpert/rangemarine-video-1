@@ -11,6 +11,9 @@ jobs:
   render:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      GDRIVE_FOLDER_ID: ${{ vars.GDRIVE_FOLDER_ID }}
+      GDRIVE_SA_JSON: ${{ secrets.GDRIVE_SA_JSON }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -31,7 +34,4 @@ jobs:
             automation/pilot/output/qa.json
       - name: Upload to Google Drive and verify
         if: ${{ env.GDRIVE_SA_JSON != '' && env.GDRIVE_FOLDER_ID != '' }}
-        env:
-          GDRIVE_SA_JSON: ${{ secrets.GDRIVE_SA_JSON }}
-          GDRIVE_FOLDER_ID: ${{ vars.GDRIVE_FOLDER_ID }}
         run: python automation/scripts/upload_drive.py
