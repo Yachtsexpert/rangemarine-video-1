@@ -1,9 +1,21 @@
 # Облачный технический видеоконвейер
 
-Тестовая конфигурация для существующего девятиэтапного шаблона. Она НЕ заменяет основной проектный процесс: утверждённые входы лежат в approved/, автоматическая сборка работает только с ними. Пилот генерирует технические титульные сцены, а не рекламный ролик.
+Пилот собирает только утверждённый технический fixture из `automation/pilot/approved/`. Он проверяет техническую сборку MP4, но не является готовым рекламным роликом.
 
-Запуск: GitHub Actions → Video pipeline pilot → Run workflow; либо push в automation/. Результат — artifact pilot-mp4-and-qa.
+## Запуск
 
-Для загрузки на Drive требуются GitHub Actions secret GDRIVE_SA_JSON (JSON сервисного аккаунта Google с правом записи в целевую папку) и repository variable GDRIVE_FOLDER_ID (ID папки). Никогда не помещайте JSON-ключ в репозиторий. Если они отсутствуют, workflow собирает artifact, но Drive upload пропускается. Сервисному аккаунту требуется отдельно предоставить доступ к целевой папке; доступ пользовательского Google Drive connector не передаётся автоматически в GitHub.
+Откройте GitHub Actions → **Video pipeline pilot** → **Run workflow**. Сборка сохраняет artifact `pilot-mp4-and-qa`. Загрузка на Google Drive запускается только если заданы все три repository variables ниже; имена файлов содержат ID запуска, чтобы тесты не перезаписывали друг друга.
 
-Проверки: длительность, разрешение, H.264, SHA256, проверка Drive file metadata. Звук, лицензии, содержимое реальных видео и полная 9-этапная приемка НЕ проверяются.
+## Безопасное подключение Google Drive
+
+Workflow использует GitHub OIDC и краткоживущий access token. JSON-ключ сервисного аккаунта и секрет `GDRIVE_SA_JSON` больше не нужны. В настройках репозитория добавьте Variables:
+
+- `GCP_WIF_PROVIDER` — полный resource name OIDC provider, например `projects/PROJECT_NUMBER/locations/global/workloadIdentityPools/POOL/providers/PROVIDER`.
+- `GCP_SERVICE_ACCOUNT` — email выделенного service account.
+- `GDRIVE_FOLDER_ID` — ID целевой папки Google Drive.
+
+В Google Cloud настройте Workload Identity Federation для issuer `https://token.actions.githubusercontent.com/`. Ограничьте provider условиями для репозитория `Yachtsexpert/rangemarine-video-1`, ветки `refs/heads/main` и workflow `.github/workflows/video-pipeline-pilot.yml`. На service account выдайте `roles/iam.workloadIdentityUser` только федеративному principal этого репозитория. Не создавайте и не загружайте JSON-ключ.
+
+Включите Google Drive API и предоставьте этому service account доступ редактора только к целевой папке. Workflow запрашивает OAuth scope `https://www.googleapis.com/auth/drive.file`, загружает MP4 и `qa.json`, затем перечитывает metadata созданных файлов и сверяет папку, имя и размер.
+
+Проверки: длительность, разрешение, H.264, SHA-256 и сверка Drive metadata. Звук, лицензии, достоверность содержимого, водяные знаки и полный 9-этапный производственный контроль этот fixture не проверяет.
