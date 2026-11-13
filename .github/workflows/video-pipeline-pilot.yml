@@ -1,19 +1,20 @@
 name: Video pipeline pilot
+
 on:
-  push:
-    paths:
-      - 'automation/**'
-      - '.github/workflows/video-pipeline-pilot.yml'
   workflow_dispatch:
+
 permissions:
   contents: read
+
 jobs:
   render:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write
     env:
       GDRIVE_FOLDER_ID: ${{ vars.GDRIVE_FOLDER_ID }}
-      GDRIVE_SA_JSON: ${{ secrets.GDRIVE_SA_JSON }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -32,6 +33,17 @@ jobs:
           path: |
             automation/pilot/output/pilot.mp4
             automation/pilot/output/qa.json
+      - id: gcp-auth
+        name: Authenticate to Google Cloud with GitHub OIDC
+        if: ${{ vars.GCP_WIF_PROVIDER != '' && vars.GCP_SERVICE_ACCOUNT != '' && vars.GDRIVE_FOLDER_ID != '' }}
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
+          token_format: access_token
+          access_token_scopes: https://www.googleapis.com/auth/drive.file
       - name: Upload to Google Drive and verify
-        if: ${{ env.GDRIVE_SA_JSON != '' && env.GDRIVE_FOLDER_ID != '' }}
+        if: ${{ vars.GCP_WIF_PROVIDER != '' && vars.GCP_SERVICE_ACCOUNT != '' && vars.GDRIVE_FOLDER_ID != '' }}
+        env:
+          GDRIVE_ACCESS_TOKEN: ${{ steps.gcp-auth.outputs.access_token }}
         run: python automation/scripts/upload_drive.py
