@@ -1,0 +1,37 @@
+name: Video pipeline pilot
+on:
+  push:
+    paths:
+      - 'automation/**'
+      - '.github/workflows/video-pipeline-pilot.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install FFmpeg and Python dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y ffmpeg fonts-dejavu-core
+          python -m pip install Pillow google-api-python-client google-auth
+      - name: Render approved technical fixture
+        run: python automation/scripts/build.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pilot-mp4-and-qa
+          path: |
+            automation/pilot/output/pilot.mp4
+            automation/pilot/output/qa.json
+      - name: Upload to Google Drive and verify
+        if: ${{ env.GDRIVE_SA_JSON != '' && env.GDRIVE_FOLDER_ID != '' }}
+        env:
+          GDRIVE_SA_JSON: ${{ secrets.GDRIVE_SA_JSON }}
+          GDRIVE_FOLDER_ID: ${{ vars.GDRIVE_FOLDER_ID }}
+        run: python automation/scripts/upload_drive.py
