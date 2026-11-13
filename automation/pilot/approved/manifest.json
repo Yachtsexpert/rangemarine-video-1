@@ -1,0 +1,23 @@
+{
+  "technical_fixture": true,
+  "shots": [
+    {
+      "id": "S01",
+      "label": "Brief to shots",
+      "duration_seconds": 3,
+      "approved": true
+    },
+    {
+      "id": "S02",
+      "label": "Frames to clips",
+      "duration_seconds": 3,
+      "approved": true
+    },
+    {
+      "id": "S03",
+      "label": "Editing and QC",
+      "duration_seconds": 3,
+      "approved": true
+    }
+  ]
+}
