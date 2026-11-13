@@ -12,9 +12,6 @@ jobs:
     timeout-minutes: 20
     permissions:
       contents: read
-      id-token: write
-    env:
-      GDRIVE_FOLDER_ID: ${{ vars.GDRIVE_FOLDER_ID }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -24,7 +21,7 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y ffmpeg fonts-dejavu-core
-          python -m pip install Pillow google-api-python-client google-auth
+          python -m pip install Pillow
       - name: Render approved technical fixture
         run: python automation/scripts/build.py
       - uses: actions/upload-artifact@v4
@@ -33,9 +30,31 @@ jobs:
           path: |
             automation/pilot/output/pilot.mp4
             automation/pilot/output/qa.json
+          if-no-files-found: error
+
+  upload:
+    needs: render
+    if: ${{ vars.GCP_WIF_PROVIDER != '' && vars.GCP_SERVICE_ACCOUNT != '' && vars.GDRIVE_FOLDER_ID != '' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      GDRIVE_FOLDER_ID: ${{ vars.GDRIVE_FOLDER_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install Drive upload dependencies
+        run: python -m pip install google-api-python-client google-auth
+      - uses: actions/download-artifact@v4
+        with:
+          name: pilot-mp4-and-qa
+          path: automation/pilot/output
       - id: gcp-auth
         name: Authenticate to Google Cloud with GitHub OIDC
-        if: ${{ vars.GCP_WIF_PROVIDER != '' && vars.GCP_SERVICE_ACCOUNT != '' && vars.GDRIVE_FOLDER_ID != '' }}
         uses: google-github-actions/auth@v3
         with:
           workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
@@ -43,7 +62,6 @@ jobs:
           token_format: access_token
           access_token_scopes: https://www.googleapis.com/auth/drive.file
       - name: Upload to Google Drive and verify
-        if: ${{ vars.GCP_WIF_PROVIDER != '' && vars.GCP_SERVICE_ACCOUNT != '' && vars.GDRIVE_FOLDER_ID != '' }}
         env:
           GDRIVE_ACCESS_TOKEN: ${{ steps.gcp-auth.outputs.access_token }}
         run: python automation/scripts/upload_drive.py
